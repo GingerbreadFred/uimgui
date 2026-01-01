@@ -15,16 +15,12 @@ namespace UImGui
 		private Context _context;
 		private IRenderer _renderer;
 		private IPlatform _platform;
-		private CommandBuffer _renderCommandBuffer;
 
 		[SerializeField]
 		private Camera _camera = null;
 
 		[SerializeField]
 		private RenderImGui _renderFeature = null;
-
-		[SerializeField]
-		private RenderType _rendererType = RenderType.Mesh;
 
 		[SerializeField]
 		private InputType _platformType = InputType.InputManager;
@@ -82,7 +78,7 @@ namespace UImGui
 
 		private bool _isChangingCamera = false;
 
-		public CommandBuffer CommandBuffer => _renderCommandBuffer;
+		internal IRenderer GetRenderer() => _renderer;
 
 		#region Events
 		public event System.Action<UImGui> Layout;
@@ -136,31 +132,25 @@ namespace UImGui
 			void Fail(string reason)
 			{
 				enabled = false;
-				throw new System.Exception($"Failed to start: {reason}.");
+				throw new System.Exception($"UImGui failed to start: {reason}.");
 			}
 
 			if (_camera == null)
 			{
-				Fail(nameof(_camera));
+				Fail("Camera not assigned");
 			}
 
 			if (_renderFeature == null && RenderUtility.IsUsingURP())
 			{
-				Fail(nameof(_renderFeature));
+				Fail("RenderImGui feature not assigned - required for URP render graph");
 			}
 
-			_renderCommandBuffer = RenderUtility.GetCommandBuffer(Constants.UImGuiCommandBuffer);
-
+			// Pass UImGui reference to render feature for URP
 			if (RenderUtility.IsUsingURP())
 			{
 #if HAS_URP
-				_renderFeature.Camera = _camera;
+				_renderFeature.SetUImGui(this, _camera);
 #endif
-				_renderFeature.CommandBuffer = _renderCommandBuffer;
-			}
-			else if (!RenderUtility.IsUsingHDRP())
-			{
-				_camera.AddCommandBuffer(CameraEvent.AfterEverything, _renderCommandBuffer);
 			}
 
 			UImGuiUtility.SetCurrentContext(_context);
@@ -177,13 +167,13 @@ namespace UImGui
 			SetPlatform(platform, io);
 			if (_platform == null)
 			{
-				Fail(nameof(_platform));
+				Fail("Platform initialization failed");
 			}
 
-			SetRenderer(RenderUtility.Create(_rendererType, _shaders, _context.TextureManager), io);
+			SetRenderer(new RendererMesh(_shaders, _context.TextureManager), io);
 			if (_renderer == null)
 			{
-				Fail(nameof(_renderer));
+				Fail("Renderer initialization failed");
 			}
 
 			if (_doGlobalEvents)
@@ -211,25 +201,10 @@ namespace UImGui
 				if (_renderFeature != null)
 				{
 #if HAS_URP
-					_renderFeature.Camera = null;
+					_renderFeature.SetUImGui(null, null);
 #endif
-					_renderFeature.CommandBuffer = null;
 				}
 			}
-			else if(!RenderUtility.IsUsingHDRP())
-			{
-				if (_camera != null)
-				{
-					_camera.RemoveCommandBuffer(CameraEvent.AfterEverything, _renderCommandBuffer);
-				}
-			}
-
-			if (_renderCommandBuffer != null)
-			{
-				RenderUtility.ReleaseCommandBuffer(_renderCommandBuffer);
-			}
-
-			_renderCommandBuffer = null;
 
 			if (_doGlobalEvents)
 			{
@@ -242,10 +217,10 @@ namespace UImGui
 		{
 			if (RenderUtility.IsUsingHDRP())
 				return; // skip update call in hdrp
-			DoUpdate(this.CommandBuffer);
+			PrepareFrame();
 		}
 
-		internal void DoUpdate(CommandBuffer buffer)
+		internal void PrepareFrame()
 		{
 			UImGuiUtility.SetCurrentContext(_context);
 			ImGuiIOPtr io = ImGui.GetIO();
@@ -272,19 +247,26 @@ namespace UImGui
 			finally
 			{
 				ImGui.Render();
+				var drawData = ImGui.GetDrawData();
+				Debug.Log($"[UImGui] After Render: drawData.Valid={drawData.Valid}, TotalVtxCount={drawData.TotalVtxCount}");
 				Constants.LayoutMarker.End();
 			}
-
-			Constants.DrawListMarker.Begin(this);
-			_renderCommandBuffer.Clear();
-			_renderer.RenderDrawLists(buffer, ImGui.GetDrawData());
-			Constants.DrawListMarker.End();
 
 			if (_isChangingCamera)
 			{
 				_isChangingCamera = false;
 				Reload();
 			}
+		}
+
+		// For HDRP compatibility - called by CustomPass
+		internal void DoUpdate(CommandBuffer buffer)
+		{
+			PrepareFrame();
+
+			Constants.DrawListMarker.Begin(this);
+			_renderer.RenderDrawLists(buffer, ImGui.GetDrawData());
+			Constants.DrawListMarker.End();
 		}
 
 		private void SetRenderer(IRenderer renderer, ImGuiIOPtr io)
