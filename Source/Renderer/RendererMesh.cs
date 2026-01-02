@@ -107,7 +107,6 @@ namespace UImGui.Renderer
 		}
 
 #if HAS_URP
-		// Render graph overload for URP
 		public void RenderDrawListsRG(RasterCommandBuffer commandBuffer, ImDrawDataPtr drawData)
 		{
 			Vector2 fbOSize = drawData.DisplaySize * drawData.FramebufferScale;
@@ -250,7 +249,6 @@ namespace UImGui.Renderer
 		}
 
 #if HAS_URP
-		// Render graph version for RasterCommandBuffer
 		private void CreateDrawCommandsRG(RasterCommandBuffer commandBuffer, ImDrawDataPtr drawData, Vector2 fbSize)
 		{
 			IntPtr prevTextureId = IntPtr.Zero;
@@ -288,7 +286,6 @@ namespace UImGui.Renderer
 						{
 							prevTextureId = drawCmd.TextureId;
 
-							// TODO: Implement ImDrawCmdPtr.GetTexID().
 							bool hasTexture = _textureManager.TryGetTexture(prevTextureId, out UnityEngine.Texture texture);
 							Assert.IsTrue(hasTexture, $"Texture {prevTextureId} does not exist. Try to use UImGuiUtility.GetTextureID().");
 

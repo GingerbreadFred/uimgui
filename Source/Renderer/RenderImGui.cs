@@ -30,7 +30,6 @@ namespace UImGui.Renderer
 			{
 				if (_feature == null || _feature._uimgui == null)
 				{
-					Debug.Log($"[UImGui] RecordRenderGraph: feature={_feature != null}, uimgui={_feature?._uimgui != null}");
 					return;
 				}
 
@@ -41,12 +40,10 @@ namespace UImGui.Renderer
 
 				if (cameraData.camera.pixelWidth == 0 || cameraData.camera.pixelHeight == 0)
 				{
-					Debug.Log("[UImGui] RecordRenderGraph: camera size is 0");
 					return;
 				}
 
 				ImDrawDataPtr drawData = ImGui.GetDrawData();
-				Debug.Log($"[UImGui] RecordRenderGraph: drawData.Valid={drawData.Valid}, TotalVtxCount={drawData.TotalVtxCount}, CmdListsCount={drawData.CmdListsCount}");
 				if (!drawData.Valid || drawData.TotalVtxCount == 0)
 					return;
 
@@ -62,9 +59,7 @@ namespace UImGui.Renderer
 
 					builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
 					{
-						Debug.Log($"[UImGui] Executing render func with {data.drawData.TotalVtxCount} vertices");
 						var renderer = (RendererMesh)data.uimgui.GetRenderer();
-						// Use RasterCommandBuffer version for render graph
 						renderer.RenderDrawListsRG(context.cmd, data.drawData);
 					});
 				}
@@ -80,14 +75,12 @@ namespace UImGui.Renderer
 
 		public void SetUImGui(UImGui uimgui, Camera camera)
 		{
-			Debug.Log($"[UImGui] SetUImGui called: uimgui={uimgui != null}, camera={camera != null}");
 			_uimgui = uimgui;
 			Camera = camera;
 		}
 
 		public override void Create()
 		{
-			Debug.Log("[UImGui] RenderImGui.Create() called");
 			_renderPass = new ImGuiRenderPass
 			{
 				renderPassEvent = RenderPassEvent

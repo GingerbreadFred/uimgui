@@ -247,8 +247,6 @@ namespace UImGui
 			finally
 			{
 				ImGui.Render();
-				var drawData = ImGui.GetDrawData();
-				Debug.Log($"[UImGui] After Render: drawData.Valid={drawData.Valid}, TotalVtxCount={drawData.TotalVtxCount}");
 				Constants.LayoutMarker.End();
 			}
 
