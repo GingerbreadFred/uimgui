@@ -13,7 +13,6 @@ namespace UImGui.Editor
 		private SerializedProperty _doGlobalEvents;
 		private SerializedProperty _camera;
 		private SerializedProperty _renderFeature;
-		private SerializedProperty _renderer;
 		private SerializedProperty _platform;
 		private SerializedProperty _initialConfiguration;
 		private SerializedProperty _fontAtlasConfiguration;
@@ -43,7 +42,6 @@ namespace UImGui.Editor
 			}
 
 			EditorGUILayout.PropertyField(_camera);
-			EditorGUILayout.PropertyField(_renderer);
 			EditorGUILayout.PropertyField(_platform);
 			EditorGUILayout.PropertyField(_initialConfiguration);
 			EditorGUILayout.PropertyField(_fontAtlasConfiguration);
@@ -73,7 +71,6 @@ namespace UImGui.Editor
 			_doGlobalEvents = serializedObject.FindProperty("_doGlobalEvents");
 			_camera = serializedObject.FindProperty("_camera");
 			_renderFeature = serializedObject.FindProperty("_renderFeature");
-			_renderer = serializedObject.FindProperty("_rendererType");
 			_platform = serializedObject.FindProperty("_platformType");
 			_initialConfiguration = serializedObject.FindProperty("_initialConfiguration");
 			_fontAtlasConfiguration = serializedObject.FindProperty("_fontAtlasConfiguration");
@@ -117,13 +114,6 @@ namespace UImGui.Editor
 			{
 				_messages.AppendLine("Must assign a RenderFeature when using the URP.");
 			}
-
-#if !UNITY_2020_1_OR_NEWER
-			if ((RenderType)_renderer.enumValueIndex == RenderType.Mesh)
-			{
-				_messages.AppendLine("Unity 2019 can't use Mesh. Please select procedural.");
-			}
-#endif
 
 			SerializedProperty configFlags = _initialConfiguration.FindPropertyRelative("ImGuiConfig");
 			if (!PlatformUtility.IsAvailable((InputType)_platform.enumValueIndex))

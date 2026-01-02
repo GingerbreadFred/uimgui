@@ -10,6 +10,9 @@ using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Rendering;
+#if HAS_URP
+using UnityEngine.Rendering.RenderGraphModule;
+#endif
 using Object = UnityEngine.Object;
 
 namespace UImGui.Renderer
@@ -102,6 +105,28 @@ namespace UImGui.Renderer
 			Constants.CreateDrawCommandsMarker.End();
 			commandBuffer.EndSample(Constants.ExecuteDrawCommandsMarker);
 		}
+
+#if HAS_URP
+		public void RenderDrawListsRG(RasterCommandBuffer commandBuffer, ImDrawDataPtr drawData)
+		{
+			Vector2 fbOSize = drawData.DisplaySize * drawData.FramebufferScale;
+
+			// Avoid rendering when minimized.
+			if (fbOSize.x <= 0f || fbOSize.y <= 0f || drawData.TotalVtxCount == 0) return;
+
+			Constants.UpdateMeshMarker.Begin();
+			UpdateMesh(drawData);
+			Constants.UpdateMeshMarker.End();
+
+			commandBuffer.BeginSample(Constants.ExecuteDrawCommandsMarker);
+			Constants.CreateDrawCommandsMarker.Begin();
+
+			CreateDrawCommandsRG(commandBuffer, drawData, fbOSize);
+
+			Constants.CreateDrawCommandsMarker.End();
+			commandBuffer.EndSample(Constants.ExecuteDrawCommandsMarker);
+		}
+#endif
 
 		private void UpdateMesh(ImDrawDataPtr drawData)
 		{
@@ -222,6 +247,59 @@ namespace UImGui.Renderer
 			}
 			commandBuffer.DisableScissorRect();
 		}
+
+#if HAS_URP
+		private void CreateDrawCommandsRG(RasterCommandBuffer commandBuffer, ImDrawDataPtr drawData, Vector2 fbSize)
+		{
+			IntPtr prevTextureId = IntPtr.Zero;
+			Vector4 clipOffset = new Vector4(drawData.DisplayPos.x, drawData.DisplayPos.y,
+				drawData.DisplayPos.x, drawData.DisplayPos.y);
+			Vector4 clipScale = new Vector4(drawData.FramebufferScale.x, drawData.FramebufferScale.y,
+				drawData.FramebufferScale.x, drawData.FramebufferScale.y);
+
+			commandBuffer.SetViewport(new Rect(0f, 0f, fbSize.x, fbSize.y));
+			commandBuffer.SetViewProjectionMatrices(
+				Matrix4x4.Translate(new Vector3(0.5f / fbSize.x, 0.5f / fbSize.y, 0f)), // Small adjustment to improve text.
+				Matrix4x4.Ortho(0f, fbSize.x, fbSize.y, 0f, 0f, 1f));
+
+			int subOf = 0;
+			for (int n = 0, nMax = drawData.CmdListsCount; n < nMax; ++n)
+			{
+				ImDrawListPtr drawList = drawData.CmdLists[n];
+				for (int i = 0, iMax = drawList.CmdBuffer.Size; i < iMax; ++i, ++subOf)
+				{
+					ImDrawCmdPtr drawCmd = drawList.CmdBuffer[i];
+					if (drawCmd.UserCallback != IntPtr.Zero)
+					{
+						UserDrawCallback userDrawCallback = Marshal.GetDelegateForFunctionPointer<UserDrawCallback>(drawCmd.UserCallback);
+						userDrawCallback(drawList, drawCmd);
+					}
+					else
+					{
+						// Project scissor rectangle into framebuffer space and skip if fully outside.
+						Vector4 clipSize = drawCmd.ClipRect - clipOffset;
+						Vector4 clip = Vector4.Scale(clipSize, clipScale);
+
+						if (clip.x >= fbSize.x || clip.y >= fbSize.y || clip.z < 0f || clip.w < 0f) continue;
+
+						if (prevTextureId != drawCmd.TextureId)
+						{
+							prevTextureId = drawCmd.TextureId;
+
+							bool hasTexture = _textureManager.TryGetTexture(prevTextureId, out UnityEngine.Texture texture);
+							Assert.IsTrue(hasTexture, $"Texture {prevTextureId} does not exist. Try to use UImGuiUtility.GetTextureID().");
+
+							_materialProperties.SetTexture(_textureID, texture);
+						}
+
+						commandBuffer.EnableScissorRect(new Rect(clip.x, fbSize.y - clip.w, clip.z - clip.x, clip.w - clip.y)); // Invert y.
+						commandBuffer.DrawMesh(_mesh, Matrix4x4.identity, _material, subOf, -1, _materialProperties);
+					}
+				}
+			}
+			commandBuffer.DisableScissorRect();
+		}
+#endif
 	}
 }
 #endif

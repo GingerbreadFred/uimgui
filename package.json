@@ -1,9 +1,9 @@
 {
-  "name": "com.psydack.uimgui",
+  "name": "com.gingerbreadfred.uimgui",
   "displayName": "UImGui",
-  "version": "5.0.0",
-  "description": "A Unity wrapper for ImGui",
-  "unity": "2019.4",
+  "version": "6.0.0",
+  "description": "Unity wrapper for Dear ImGui (Unity 6 / URP 17+ / HDRP 17+ with Render Graph)",
+  "unity": "6000.0",
   "dependencies": {
   },
   "keywords": [
@@ -12,12 +12,12 @@
     "ui"
   ],
   "author": {
-    "name": "Psydack",
-    "url": "https://github.com/psydack"
+    "name": "GingerbreadFred",
+    "url": "https://github.com/gingerbreadfred"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/psydack/uimgui",
+    "url": "https://github.com/GingerbreadFred/uimgui",
     "revision": ""
   }
 }
