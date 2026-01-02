@@ -117,16 +117,6 @@ namespace UImGui
 			_isChangingCamera = true;
 		}
 
-		private void Awake()
-		{
-			_context = UImGuiUtility.CreateContext();
-		}
-
-		private void OnDestroy()
-		{
-			UImGuiUtility.DestroyContext(_context);
-		}
-
 		private void OnEnable()
 		{
 			void Fail(string reason)
@@ -153,6 +143,7 @@ namespace UImGui
 #endif
 			}
 
+			_context = UImGuiUtility.CreateContext();
 			UImGuiUtility.SetCurrentContext(_context);
 
 			ImGuiIOPtr io = ImGui.GetIO();
@@ -196,6 +187,9 @@ namespace UImGui
 			_context.TextureManager.Shutdown();
 			_context.TextureManager.DestroyFontAtlas(io);
 
+			UImGuiUtility.DestroyContext(_context);
+			_context = null;
+			
 			if (RenderUtility.IsUsingURP())
 			{
 				if (_renderFeature != null)
